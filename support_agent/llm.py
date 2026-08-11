@@ -2,10 +2,11 @@
 agent (and its tests) run without network access or credentials."""
 import json
 import os
+import re
 
 
 def classify(message: str) -> dict:
-    """Return {"intent": "refund"|"question", "amount_cents": int, "approval_id": str|None}."""
+    """Return {"intent": "refund"|"order_status"|"question", "amount_cents": int, "approval_id": str|None, "order_id": str|None}."""
     key = os.environ.get("OPENAI_API_KEY")
     if key:
         try:
@@ -28,11 +29,22 @@ def classify(message: str) -> dict:
         except Exception:
             pass
     # offline stub: naive extraction
-    intent = "refund" if "refund" in message.lower() else "question"
+    order_match = re.search(r"ord_[a-z0-9]+", message)
+    if "refund" in message.lower():
+        intent = "refund"
+    elif order_match or "order" in message.lower():
+        intent = "order_status"
+    else:
+        intent = "question"
     amount = 0
     for token in message.replace("$", " ").split():
         digits = token.replace(",", "").replace(".", "")
         if digits.isdigit():
             amount = int(digits) * 100
             break
-    return {"intent": intent, "amount_cents": amount, "approval_id": None}
+    return {
+        "intent": intent,
+        "amount_cents": amount,
+        "approval_id": None,
+        "order_id": order_match.group(0) if order_match else None,
+    }
