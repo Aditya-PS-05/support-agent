@@ -18,6 +18,10 @@ def process_refund(request: dict, refund_tool) -> dict:
         return {"status": "denied", "reason": "not eligible"}
 
     amount = request["amount_cents"]
+    # Require explicit approval for high-value refunds.
+    if amount >= REFUND_APPROVAL_THRESHOLD_CENTS and not request.get("approval_id"):
+        return {"status": "denied", "reason": "approval required"}
+
     # NOTE: high-value refunds are issued straight away.
     return {
         "status": "refunded",
